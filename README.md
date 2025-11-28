@@ -1049,7 +1049,7 @@ All inputs follow nixpkgs (`inputs.nixpkgs.follows = "nixpkgs"`) to avoid versio
 | `/var/lib/sops-nix/key.txt` | Age private key (sops-nix) |
 | `~/.config/git-agecrypt/keys.txt` | Age private key (git-agecrypt) |
 | `/run/secrets/*` | sops-nix decrypted secrets (tmpfs, runtime only) |
-| `/etc/secrets/initrd/ssh_host_ed25519_key` | Dropbear host key |
+| (in initrd, via Nix store) | Dropbear host key |
 | `/etc/ssh/ssh_host_ed25519_key` | OpenSSH host key |
 | `/home/ezirius/.ssh/id_ed25519` | GitHub SSH private key (sops-managed) |
 

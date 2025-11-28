@@ -1,6 +1,8 @@
-{ config, modulesPath, ... }:
+{ config, pkgs, modulesPath, ... }:
 let
   secrets = import ../../secrets/nithra/git-agecrypt.nix;
+  # Initrd host key must be in Nix store (available at build time, not activation time)
+  initrdHostKey = pkgs.writeText "initrd_ssh_host_ed25519_key" secrets.hostKeys.boot;
 in
 {
   imports = [
@@ -37,12 +39,7 @@ in
   # /var/log needs to be available early for proper boot logging
   fileSystems."/var/log".neededForBoot = true;
 
-  # --- HOST KEYS (from git-agecrypt encrypted secrets/nithra/git-agecrypt.nix) ---
-  # Initrd (Dropbear) host key
-  environment.etc."secrets/initrd/ssh_host_ed25519_key" = {
-    text = secrets.hostKeys.boot;
-    mode = "0600";
-  };
+  # --- HOST KEYS (from git-agecrypt) ---
   # OpenSSH host key - disable auto-generation, use our managed key
   services.openssh.hostKeys = [ ];
   environment.etc."ssh/ssh_host_ed25519_key" = {
@@ -72,8 +69,7 @@ in
     ssh = {
       enable = true;
       port = 22;
-      # Separate key from OpenSSH (provisioned from git-agecrypt.nix via environment.etc)
-      hostKeys = [ "/etc/secrets/initrd/ssh_host_ed25519_key" ];
+      hostKeys = [ initrdHostKey ]; # Nix store path (available at build time)
       authorizedKeys = secrets.dropbear.authorizedKeys;
     };
   };
