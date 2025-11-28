@@ -215,30 +215,27 @@ nixos-rebuild build --flake .#nithra         # Test build without switching
 
 ### Add SSH Key for Login
 
-1. Edit sops secrets:
-   ```bash
-   cd <repo>
-   sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run "sops secrets/nithra/sops-nix.yaml"
-   ```
+SSH login keys are stored in git-agecrypt.nix (not sops) because they're needed at Nix evaluation time.
 
-2. Add key as `ssh-pubkey-<user>-<machine>: "ssh-ed25519 AAAA..."`
+1. Edit `secrets/nithra/git-agecrypt.nix`
 
-3. Add to `hosts/nithra/default.nix`:
+2. Add to `sshPubKeys`:
    ```nix
-   sops.secrets.ssh-pubkey-<user>-<machine> = { };
-   ```
-
-4. Add to `users/<user>/default.nix` inside the `users.users.<user>` block:
-   ```nix
-   users.users.<user> = {
-     # ... existing config ...
-     openssh.authorizedKeys.keyFiles = [
-       config.sops.secrets.ssh-pubkey-<user>-<machine>.path
-     ];
+   sshPubKeys = {
+     # ... existing keys ...
+     newmachine = "ssh-ed25519 AAAA...";
    };
    ```
 
-5. `./install.sh`
+3. Add to `hosts/nithra/default.nix` in the `authorizedKeys.keys` list:
+   ```nix
+   users.users.<user>.openssh.authorizedKeys.keys = [
+     # ... existing keys ...
+     secrets.sshPubKeys.newmachine
+   ];
+   ```
+
+4. `./install.sh`
 
 ### Add SSH Key for Boot Unlock
 
@@ -352,8 +349,8 @@ Two-layer system due to NixOS evaluation constraints:
 
 | Layer | Tool | File | When Decrypted | Use Case |
 |-------|------|------|----------------|----------|
-| 1 | git-agecrypt | `secrets/<host>/git-agecrypt.nix` | Git checkout (eval time) | Network config, host keys, Dropbear keys |
-| 2 | sops-nix | `secrets/<host>/sops-nix.yaml` | System activation | User passwords, SSH pubkeys |
+| 1 | git-agecrypt | `secrets/<host>/git-agecrypt.nix` | Git checkout (eval time) | Network config, host keys, Dropbear keys, SSH login pubkeys |
+| 2 | sops-nix | `secrets/<host>/sops-nix.yaml` | System activation | User passwords, GitHub SSH private key |
 
 **Why two layers?** Layer 1 secrets are needed during Nix evaluation (e.g., boot kernel params) or in initrd (before sops-nix runs). Layer 2 secrets are decrypted at runtime by sops-nix. See the comments in `secrets/nithra/git-agecrypt.nix` for detailed explanation.
 
@@ -434,6 +431,10 @@ The file includes detailed comments explaining why each secret is needed. Struct
     # Each key prefixed with restrictions and command
     ''no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="cryptsetup-askpass" ssh-ed25519 AAAA... comment''
   ];
+  sshPubKeys = {
+    machine1 = "ssh-ed25519 AAAA...";  # SSH login keys (one per client machine)
+    machine2 = "ssh-ed25519 AAAA...";
+  };
   hostKeys = {
     boot = "-----BEGIN OPENSSH PRIVATE KEY-----...";   # Dropbear (initrd)
     login = "-----BEGIN OPENSSH PRIVATE KEY-----...";  # OpenSSH (runtime)
@@ -446,14 +447,13 @@ The file includes detailed comments explaining why each secret is needed. Struct
 ```yaml
 root-password: $6$...          # SHA-512 hash from mkpasswd
 ezirius-password: $6$...       # SHA-512 hash from mkpasswd
-ssh-pubkey-ezirius-ipsa: ssh-ed25519 AAAA... user@ipsa
-ssh-pubkey-ezirius-ipirus: ssh-ed25519 AAAA... user@ipirus
-ssh-pubkey-ezirius-maldoria: ssh-ed25519 AAAA... user@maldoria
 github-ssh-key-nithra: |       # Private key for GitHub push/pull
   -----BEGIN OPENSSH PRIVATE KEY-----
   ...
   -----END OPENSSH PRIVATE KEY-----
 ```
+
+**Note:** SSH login public keys are in git-agecrypt.nix (not sops) because sops paths don't exist at Nix evaluation time.
 
 ### .sops.yaml Structure
 
@@ -957,8 +957,8 @@ nixos-rebuild boot --flake <repo>#nithra
 ├── modules/core/
 │   └── default.nix           # Shared config (SSH, firewall, packages, hardening)
 ├── secrets/nithra/
-│   ├── git-agecrypt.nix      # Encrypted: network, dropbear keys, host keys
-│   └── sops-nix.yaml         # Encrypted: passwords, SSH pubkeys
+│   ├── git-agecrypt.nix      # Encrypted: network, dropbear keys, SSH login pubkeys, host keys
+│   └── sops-nix.yaml         # Encrypted: passwords, GitHub SSH private key
 └── users/{root,ezirius}/
     ├── default.nix           # System user (groups, shell, auth)
     └── home.nix              # Home-manager (programs, dotfiles)

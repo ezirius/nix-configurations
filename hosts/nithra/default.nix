@@ -19,14 +19,19 @@ in
   sops.age.keyFile = "/var/lib/sops-nix/key.txt";
   sops.secrets.root-password.neededForUsers = true;
   sops.secrets.ezirius-password.neededForUsers = true;
-  sops.secrets.ssh-pubkey-ezirius-ipsa = { };
-  sops.secrets.ssh-pubkey-ezirius-ipirus = { };
-  sops.secrets.ssh-pubkey-ezirius-maldoria = { };
+
   sops.secrets.github-ssh-key-nithra = {
     owner = "ezirius";
     path = "/home/ezirius/.ssh/id_ed25519";
     mode = "0600";
   };
+
+  # --- SSH LOGIN KEYS (from git-agecrypt, available at eval time) ---
+  users.users.ezirius.openssh.authorizedKeys.keys = [
+    secrets.sshPubKeys.ipsa
+    secrets.sshPubKeys.ipirus
+    secrets.sshPubKeys.maldoria
+  ];
 
   # --- FILESYSTEM ---
   # /var/log needs to be available early for proper boot logging

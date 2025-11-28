@@ -7,7 +7,8 @@
 - Use metric units
 - Never make changes without explicit user approval
 - Never write new files without explicit user permission
-- Ask before modifying: secrets files, SSH config, firewall rules, user auth
+- Ask before modifying: sops-nix.yaml (user must edit), SSH config, firewall rules, user auth
+- Can edit git-agecrypt.nix directly (it's plaintext locally)
 - Proceed without asking: formatting, comments, package additions, documentation
 - Cannot edit encrypted files - if `sops-nix.yaml` needs changes, user must edit it manually
 - Cannot run commands on remote server - only edit local config files
@@ -19,8 +20,8 @@
 1. **Git staging required** - Flakes only see staged files. `./install.sh` auto-stages, but `nix flake check` does not.
 
 2. **Two secrets layers:**
-   - `secrets/nithra/git-agecrypt.nix` → git-agecrypt → needed at eval/boot time (network, host keys)
-   - `secrets/nithra/sops-nix.yaml` → sops-nix → decrypted at runtime (passwords, SSH pubkeys)
+   - `secrets/nithra/git-agecrypt.nix` → git-agecrypt → needed at eval/boot time (network, host keys, SSH login pubkeys)
+   - `secrets/nithra/sops-nix.yaml` → sops-nix → decrypted at runtime (passwords, GitHub SSH private key)
 
 3. **git-agecrypt.nix is DECRYPTED LOCALLY - this is correct!**
    - Locally (working directory): **Always plaintext** - this is expected and required for Nix to import it
@@ -50,7 +51,7 @@
 |--------------|-----------|
 | System packages | `modules/core/default.nix` → `environment.systemPackages` |
 | User packages | `users/<user>/home.nix` → `home.packages` or `programs.*` |
-| SSH keys (login) | `secrets/nithra/sops-nix.yaml` + `hosts/nithra/default.nix` + `users/<user>/default.nix` |
+| SSH keys (login) | `secrets/nithra/git-agecrypt.nix` → `sshPubKeys.*` + `hosts/nithra/default.nix` |
 | GitHub SSH key | `secrets/nithra/sops-nix.yaml` + `hosts/nithra/default.nix` (deployed to `~/.ssh/id_ed25519`) |
 | SSH keys (boot unlock) | `secrets/nithra/git-agecrypt.nix` → `dropbear.authorizedKeys` |
 | Network/IP | `secrets/nithra/git-agecrypt.nix` → `network.*` |
@@ -111,16 +112,24 @@ sops.secrets.my-password.neededForUsers = true;  # For user passwords
 }
 ```
 
-### SSH key from sops
+### SSH login key from git-agecrypt
 ```nix
-# In hosts/nithra/default.nix:
-sops.secrets.ssh-pubkey-user-machine = { };
+# In secrets/nithra/git-agecrypt.nix:
+{
+  sshPubKeys = {
+    machine1 = "ssh-ed25519 AAAA...";
+    machine2 = "ssh-ed25519 AAAA...";
+  };
+}
 
-# In users/<user>/default.nix:
-users.users.<user>.openssh.authorizedKeys.keyFiles = [
-  config.sops.secrets.ssh-pubkey-user-machine.path
+# In hosts/nithra/default.nix:
+users.users.<user>.openssh.authorizedKeys.keys = [
+  secrets.sshPubKeys.machine1
+  secrets.sshPubKeys.machine2
 ];
 ```
+
+**Note:** SSH login keys must be in git-agecrypt.nix (not sops) because `authorizedKeys.keyFiles` references absolute paths that don't exist at evaluation time. Using `authorizedKeys.keys` with git-agecrypt values avoids this issue.
 
 ### GitHub SSH private key from sops
 ```nix
@@ -137,7 +146,7 @@ sops.secrets.github-ssh-key-nithra = {
 ## Do NOT
 
 - Use `with pkgs;` pattern - use `builtins.attrValues { inherit (pkgs) ...; }`
-- Edit `git-agecrypt.nix` without user providing decrypted content
+- Forget that SSH login keys are in git-agecrypt.nix, not sops (sops paths don't exist at eval time)
 - Remove users from `AllowUsers` without confirming alternative access exists
 - Disable `fail2ban` or firewall without explicit permission
 - Hardcode IPs - use `git-agecrypt.nix` network values

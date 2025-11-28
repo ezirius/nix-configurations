@@ -6,11 +6,7 @@
     extraGroups = [ "wheel" ];
     shell = pkgs.zsh;
     hashedPasswordFile = config.sops.secrets.ezirius-password.path;
-    openssh.authorizedKeys.keyFiles = [
-      config.sops.secrets.ssh-pubkey-ezirius-ipsa.path
-      config.sops.secrets.ssh-pubkey-ezirius-ipirus.path
-      config.sops.secrets.ssh-pubkey-ezirius-maldoria.path
-    ];
+    # SSH keys set in hosts/nithra/default.nix (from git-agecrypt secrets)
   };
   programs.zsh.enable = true; # System-wide zsh for user shell
 }
