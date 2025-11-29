@@ -134,7 +134,12 @@ fi
 
 # Configure git-agecrypt
 echo -e "${YELLOW}>> Configuring git-agecrypt filters...${NC}"
-nix-shell -p git-agecrypt --run "cd '${CLONE_DIR}' && git-agecrypt init"
+# Only run init if filters not already configured
+if ! nix-shell -p git --run "cd '${CLONE_DIR}' && git config --get filter.git-agecrypt.smudge" &>/dev/null; then
+    nix-shell -p git-agecrypt --run "cd '${CLONE_DIR}' && git-agecrypt init"
+else
+    echo -e "${GREEN}>> git-agecrypt filters already configured${NC}"
+fi
 # Only add identity if not already configured
 if ! nix-shell -p git-agecrypt --run "cd '${CLONE_DIR}' && git-agecrypt config list" 2>/dev/null | grep -q "${KEY_PATH}"; then
     nix-shell -p git-agecrypt --run "cd '${CLONE_DIR}' && git-agecrypt config add -i '${KEY_PATH}'"
