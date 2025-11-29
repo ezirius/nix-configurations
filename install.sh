@@ -29,8 +29,12 @@ run_git() {
     if command -v git &> /dev/null; then
         git "$@"
     else
-        # Git missing? Run it via nix-shell (--run handles args with spaces properly)
-        nix-shell -p git --run "git $*"
+        # Git missing? Use nix-shell with proper argument escaping
+        local args=""
+        for arg in "$@"; do
+            args="$args '${arg//\'/\'\\\'\'}'"
+        done
+        nix-shell -p git --run "git $args"
     fi
 }
 
@@ -83,19 +87,26 @@ ensure_sops_key
 
 # Format Nix files before staging
 echo -e "${YELLOW}>> Formatting Nix files...${NC}"
-nix fmt 2>/dev/null || true
+if ! nix fmt 2>&1 | grep -v "^warning: Git tree"; then
+    echo -e "${YELLOW}>> Formatter returned non-zero (may be ok if no .nix files changed)${NC}"
+fi
 
 # Stage files (Critical for Flakes)
 echo "Staging files..."
 run_git add .
 
-# Verify secrets are encrypted in staging area
+# Verify all secrets are encrypted in staging area
 echo -e "${YELLOW}>> Verifying secrets are encrypted...${NC}"
-SECRETS_FILE="Secrets/Nithra/git-agecrypt.nix"
-FIRST_LINE=$(run_git show ":${SECRETS_FILE}" 2>/dev/null | head -n1 || true)
-if [[ "$FIRST_LINE" != "age-encryption.org/v1" ]]; then
-    echo -e "${RED}>> ERROR: ${SECRETS_FILE} is not encrypted in staging area!${NC}"
-    echo "   Expected 'age-encryption.org/v1' header, got: ${FIRST_LINE:0:30}"
+SECRETS_OK=true
+for SECRETS_FILE in $(run_git ls-files --cached 'Secrets/*/git-agecrypt.nix' 2>/dev/null); do
+    FIRST_LINE=$(run_git show ":${SECRETS_FILE}" 2>/dev/null | head -n1 || true)
+    if [[ "$FIRST_LINE" != "age-encryption.org/v1" ]]; then
+        echo -e "${RED}>> ERROR: ${SECRETS_FILE} is not encrypted in staging area!${NC}"
+        echo "   Expected 'age-encryption.org/v1' header, got: ${FIRST_LINE:0:30}"
+        SECRETS_OK=false
+    fi
+done
+if [[ "$SECRETS_OK" != true ]]; then
     echo "   Secrets would be exposed if pushed. Aborting."
     exit 1
 fi
