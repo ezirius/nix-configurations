@@ -6,8 +6,6 @@
 # Usage:
 #   ./clone.sh [host]
 #   curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash -s -- [host]
-#
-# If host is not specified, defaults to 'nithra'
 
 set -euo pipefail
 
@@ -20,7 +18,22 @@ NC='\033[0m'
 REPO_URL="https://github.com/Ezirius/Nix-Configurations.git"
 CLONE_DIR="/tmp/Nix-Configurations"
 KEY_PATH="$HOME/.config/git-agecrypt/keys.txt"
-TARGET_HOST="${1:-nithra}"
+KNOWN_HOSTS=("Nithra")
+
+# Determine target host
+if [[ -n "${1:-}" ]]; then
+    TARGET_HOST="$1"
+else
+    echo -e "${YELLOW}>> Select host to install:${NC}"
+    select opt in "${KNOWN_HOSTS[@]}"; do
+        if [[ -n "$opt" ]]; then
+            TARGET_HOST="$opt"
+            break
+        else
+            echo "Invalid selection. Try again."
+        fi
+    done
+fi
 
 echo -e "${GREEN}>> Nix-Configurations Clone Setup (${TARGET_HOST})${NC}"
 
@@ -133,8 +146,8 @@ echo "  sudo mkdir -p /mnt/var/lib/sops-nix"
 echo "  sudo cp '${KEY_PATH}' /mnt/var/lib/sops-nix/key.txt"
 echo "  sudo chmod 600 /mnt/var/lib/sops-nix/key.txt"
 echo ""
-echo "  # Install:"
-echo "  sudo nixos-install --flake ${CLONE_DIR}#${TARGET_HOST} --no-root-passwd"
+echo "  # Install (flake target is lowercase):"
+echo "  sudo nixos-install --flake ${CLONE_DIR}#${TARGET_HOST,,} --no-root-passwd"
 echo ""
 echo "  # After reboot, copy age key for git-agecrypt:"
 echo "  mkdir -p ~/.config/git-agecrypt"

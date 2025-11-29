@@ -522,11 +522,11 @@ ping -c 3 github.com
 The `clone.sh` script automates repository setup, age key configuration, and secrets decryption:
 
 ```bash
-# Download and run clone script (defaults to 'nithra' host)
+# Download and run clone script (will prompt for host selection)
 curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash
 
-# Or specify a different host
-curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash -s -- <hostname>
+# Or specify host directly
+curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash -s -- Nithra
 ```
 
 The script will:

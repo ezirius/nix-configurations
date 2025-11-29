@@ -9,7 +9,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-KNOWN_HOSTS=("nithra")
+KNOWN_HOSTS=("Nithra")
 
 # --- 0. RESOLVE SCRIPT LOCATION ---
 # Get the directory where this script lives (the repo), regardless of where it's called from
@@ -141,13 +141,21 @@ if [[ -n "$1" ]]; then
 else
     CURRENT_HOST=$(hostname)
     
-    if [[ " ${KNOWN_HOSTS[*]} " =~ " ${CURRENT_HOST} " ]]; then
-        TARGET="$CURRENT_HOST"
+    # Compare lowercase hostname to lowercase known hosts
+    CURRENT_HOST_LOWER="${CURRENT_HOST,,}"
+    for host in "${KNOWN_HOSTS[@]}"; do
+        if [[ "${host,,}" == "$CURRENT_HOST_LOWER" ]]; then
+            TARGET="$host"
+            break
+        fi
+    done
+    
+    if [[ -n "${TARGET:-}" ]]; then
         echo -e "${GREEN}>> Detected known host: ${TARGET}${NC}"
         echo -e "   Auto-building in 5 seconds... ${YELLOW}(Ctrl+C to cancel)${NC}"
         sleep 5
     else
-        echo -e "${RED}>> Hostname '${CURRENT_HOST}' is unknown.${NC}"
+        echo -e "${YELLOW}>> Hostname '${CURRENT_HOST}' is not a known host.${NC}"
         echo "   Select configuration to install:"
         select opt in "${KNOWN_HOSTS[@]}"; do
             if [[ -n "$opt" ]]; then
@@ -161,15 +169,17 @@ else
 fi
 
 # --- 3. BUILD ---
-echo -e "${GREEN}>> Building Flake: ${SCRIPT_DIR}#${TARGET}${NC}"
+# Flake targets use lowercase (e.g., nixosConfigurations.nithra)
+FLAKE_TARGET="${TARGET,,}"
+echo -e "${GREEN}>> Building Flake: ${SCRIPT_DIR}#${FLAKE_TARGET}${NC}"
 
 # We use nix-shell -p git here too because nixos-rebuild might need git internally
 # to read the flake if it's not in the system path yet.
 if command -v git &> /dev/null; then
-    sudo nixos-rebuild switch --flake "${SCRIPT_DIR}#${TARGET}" --show-trace
+    sudo nixos-rebuild switch --flake "${SCRIPT_DIR}#${FLAKE_TARGET}" --show-trace
 else
     # Bootstrap build command - run nix-shell as user, only nixos-rebuild as root
-    nix-shell -p git --run "sudo nixos-rebuild switch --flake '${SCRIPT_DIR}#${TARGET}' --show-trace"
+    nix-shell -p git --run "sudo nixos-rebuild switch --flake '${SCRIPT_DIR}#${FLAKE_TARGET}' --show-trace"
 fi
 
 # --- 4. SYMLINK CONFIG (if not already linked) ---
@@ -190,4 +200,4 @@ elif [ -d "$CONFIG_DIR" ]; then
     echo -e "   Remove it manually if you want automatic symlinking"
 fi
 
-echo -e "${GREEN}>> Success! System is live as: ${TARGET}${NC}"
+echo -e "${GREEN}>> Success! System is live as: ${FLAKE_TARGET}${NC}"
