@@ -66,7 +66,7 @@
 | SSH hardening | `Modules/Core/default.nix` → `services.openssh.settings` |
 | Timezone/locale | `Modules/Core/default.nix` |
 | New user | `Users/<name>/` + `Hosts/Nithra/default.nix` + `flake.nix` |
-| New host | `Hosts/<name>/` + `flake.nix` + `install.sh` + `.gitattributes` |
+| New host | `Hosts/<name>/` + `flake.nix` + `install.sh` + `clone.sh` + `.gitattributes` |
 
 ## Commands
 

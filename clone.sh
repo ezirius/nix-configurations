@@ -56,7 +56,7 @@ fi
 
 # Check network connectivity
 echo -e "${YELLOW}>> Checking network...${NC}"
-if ! ping -c 1 github.com &>/dev/null; then
+if ! curl -sI https://github.com --max-time 5 &>/dev/null; then
     echo -e "${RED}>> Error: Cannot reach github.com${NC}"
     echo "   Configure network first, then rerun this script"
     exit 1

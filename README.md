@@ -514,7 +514,7 @@ sudo ip route add default via <gateway>
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
 
 # Verify connectivity
-ping -c 3 github.com
+curl -sI https://github.com --max-time 5 && echo "Network OK"
 ```
 
 ### Step 2: Run Clone Script
@@ -1073,4 +1073,4 @@ nix flake check
 
 ---
 
-*Last updated: 2025-11-29*
+*Last updated: 2025-11-30*
