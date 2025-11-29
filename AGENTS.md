@@ -5,7 +5,7 @@
 - Be concise
 - Use British English spelling (e.g. colour, organisation, licence)
 - Use metric units
-- Never make changes without explicit user approval
+- **MANDATORY: Always ask for explicit approval before making any file changes** - describe proposed changes first, wait for user confirmation, then implement
 - Never read files or directories containing "secret" or "secrets" in the path (case-insensitive rule)
 - Never read files known to contain sensitive information, including:
   - Private keys (SSH, GPG, age, etc.)
@@ -19,8 +19,9 @@
 - Before pushing to GitHub, check for exposed sensitive information in all modified files (while still following the rules above)
 - Run `git-agecrypt init` followed by `git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt` after cloning to ensure secrets decrypt
 - Before deploying, always push to GitHub first
-- Before deploying, suggest running `nix flake check` to validate
 - Note: `./install.sh` automatically runs `nix fmt` before staging
+- Note: `./install.sh` automatically runs `nix flake check` before committing
+- Use past tense in commit messages (e.g. "Added feature" not "Add feature")
 
 ## Critical Facts
 
@@ -71,6 +72,7 @@
 
 ```bash
 ./install.sh                              # Build and switch (auto-stages git)
+./clone.sh [host]                         # Fresh install from NixOS live ISO
 nix flake check                           # Validate flake (requires git add first)
 nix fmt                                   # Format all .nix files
 nixos-rebuild build --flake .#nithra      # Test build without switching
@@ -159,6 +161,7 @@ sops.secrets.github-ssh-key-nithra = {
 - Add line number references in documentation - they break when code changes
 - Run `nix flake update` without warning about potential breaking changes
 - Create new files unless absolutely necessary - prefer editing existing files
+- Use `jj` for version control - jj doesn't support .gitattributes filters, so git-agecrypt won't encrypt
 
 ## Repository Structure
 

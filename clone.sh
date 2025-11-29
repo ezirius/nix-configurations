@@ -18,7 +18,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 REPO_URL="https://github.com/Ezirius/Nix-Configurations.git"
-CLONE_DIR="/tmp/nixos"
+CLONE_DIR="/tmp/Nix-Configurations"
 KEY_PATH="$HOME/.config/git-agecrypt/keys.txt"
 TARGET_HOST="${1:-nithra}"
 

@@ -125,10 +125,14 @@ cd <repo>
 ```
 
 The script automatically:
-1. Stages all git files (required for flakes)
-2. Detects hostname or prompts for selection
-3. Runs `nixos-rebuild switch --flake .#<host>` with `--show-trace`
-4. Creates symlink to `~/.config/nixos` if repo is elsewhere
+1. Formats all `.nix` files with `nix fmt`
+2. Stages all git files (required for flakes)
+3. Verifies secrets are encrypted
+4. Validates flake with `nix flake check`
+5. Commits and pushes changes
+6. Detects hostname or prompts for selection
+7. Runs `nixos-rebuild switch --flake .#<host>` with `--show-trace`
+8. Creates symlink to `~/.config/nixos` if repo is elsewhere
 
 **What to watch for:**
 - Build errors appear immediately - fix and re-run
@@ -198,7 +202,7 @@ sudo whoami               # Should be: root (tests sudo + password)
 ### Format Nix Files
 
 ```bash
-nix fmt                   # Uses nixfmt-rfc-style (run manually before committing)
+nix fmt                   # Uses nixfmt-rfc-style (runs automatically in install.sh)
 ```
 
 ### Validate Configuration
@@ -510,94 +514,70 @@ sudo ip route add default via <gateway>
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
 
 # Verify connectivity
-ping -c 3 1.1.1.1
+ping -c 3 github.com
 ```
 
-### Step 2: Clone Repository
+### Step 2: Run Clone Script
+
+The `clone.sh` script automates repository setup, age key configuration, and secrets decryption:
 
 ```bash
-# Enter shell with git available
-nix-shell -p git
+# Download and run clone script (defaults to 'nithra' host)
+curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash
 
-# Inside nix-shell: clone repository
-git clone https://github.com/Ezirius/Nix-Configurations /tmp/nixos
-# Or via SSH: git clone git@github.com:Ezirius/Nix-Configurations.git /tmp/nixos
-
-cd /tmp/nixos
-# Stay in nix-shell for remaining steps that need git
+# Or specify a different host
+curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash -s -- <hostname>
 ```
 
-### Step 3: Provision Age Key
+The script will:
+1. Check network connectivity
+2. Clone the repository to `/tmp/Nix-Configurations`
+3. Prompt you to paste your age private key
+4. Configure git-agecrypt filters
+5. Verify secrets are encrypted, then decrypt them
+6. Print next steps
 
+**Manual alternative:** If the curl command fails, see the manual steps in the script comments or clone manually:
 ```bash
-# Create temporary directory for age key
-sudo mkdir -p /tmp/nixos-secrets
-
-# Write age key
-sudo nano /tmp/nixos-secrets/age-key.txt
-# Paste full contents from password manager, including:
-# # created: ...
-# # public key: age1...
-# AGE-SECRET-KEY-...
-
-sudo chmod 600 /tmp/nixos-secrets/age-key.txt
+nix-shell -p git --run "git clone https://github.com/Ezirius/Nix-Configurations.git /tmp/Nix-Configurations"
 ```
 
-### Step 4: Decrypt secrets.nix
+### Step 3: Partition and Format
 
 ```bash
-# Configure git-agecrypt with the key (copy key to user config first)
-mkdir -p ~/.config/git-agecrypt
-cp /tmp/nixos-secrets/age-key.txt ~/.config/git-agecrypt/keys.txt
-chmod 600 ~/.config/git-agecrypt/keys.txt
-nix-shell -p git-agecrypt --run "git-agecrypt init"
-nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"
+cd /tmp/Nix-Configurations
 
-# Force re-checkout to decrypt
-git checkout -- Secrets/Nithra/git-agecrypt.nix
-
-# Verify decryption succeeded (should see Nix attribute set, not binary)
-head Secrets/Nithra/git-agecrypt.nix
-```
-
-If still encrypted (binary/gibberish), check:
-- Age key is correct and complete
-- git-agecrypt config was added successfully: `git config --get-regexp agecrypt`
-
-### Step 5: Partition and Format
-
-```bash
 # Wipe existing partitions
 sudo wipefs -a /dev/sda
 
 # Run disko (will prompt for LUKS passphrase)
 sudo nix --experimental-features "nix-command flakes" run github:nix-community/disko -- \
-  --mode disko /tmp/nixos/Hosts/Nithra/disko-config.nix
+  --mode disko /tmp/Nix-Configurations/Hosts/Nithra/disko-config.nix
 ```
 
 **Important:** Remember the LUKS passphrase you enter - it's **unrecoverable** if forgotten. You'll need it for every boot.
 
-### Step 6: Copy Age Key to Target
+### Step 4: Copy Age Key to Target
 
 ```bash
 # Disko mounts filesystems at /mnt
 sudo mkdir -p /mnt/var/lib/sops-nix
-sudo cp /tmp/nixos-secrets/age-key.txt /mnt/var/lib/sops-nix/key.txt
+sudo cp ~/.config/git-agecrypt/keys.txt /mnt/var/lib/sops-nix/key.txt
 sudo chmod 600 /mnt/var/lib/sops-nix/key.txt
 ```
 
-### Step 7: Install
+### Step 5: Install
 
 ```bash
-sudo nixos-install --flake /tmp/nixos#nithra --no-root-passwd
+sudo nixos-install --flake /tmp/Nix-Configurations#nithra --no-root-passwd
 ```
 
 - Takes 10-20 minutes depending on connection
 - `--no-root-passwd` because root password is managed via sops-nix
-- If it fails, check secrets.nix is decrypted
+- If it fails, check secrets are decrypted: `head Secrets/Nithra/git-agecrypt.nix`
 - If it fails partway, you can re-run the same command - it will resume where it left off
 
-### Step 8: Reboot and Unlock
+### Step 6: Reboot and Unlock
 
 ```bash
 sudo reboot
@@ -621,12 +601,12 @@ After reboot:
    # Accept host key on first connection (different from Dropbear key)
    ```
 
-### Step 9: Post-Install Setup
+### Step 7: Post-Install Setup
 
 ```bash
 # Clone repo to permanent location (git is now installed)
-git clone git@github.com:Ezirius/Nix-Configurations.git <repo>
-cd <repo>
+git clone git@github.com:Ezirius/Nix-Configurations.git ~/Nix-Configurations
+cd ~/Nix-Configurations
 
 # Configure git-agecrypt for future edits
 mkdir -p ~/.config/git-agecrypt
@@ -643,7 +623,7 @@ git checkout -- Secrets/Nithra/git-agecrypt.nix
 ./install.sh    # Should complete without errors
 ```
 
-### Step 10: Verify Installation
+### Step 8: Verify Installation
 
 ```bash
 # Check services
@@ -953,7 +933,9 @@ nixos-rebuild boot --flake <repo>#nithra
 <repo>/
 ├── flake.nix                 # Entry point, nixosConfigurations, formatter
 ├── flake.lock                # Pinned input versions
-├── install.sh                # Deploy script (stages git, builds, symlinks)
+├── install.sh                # Deploy script (formats, validates, stages, commits, pushes, builds)
+├── clone.sh                  # Fresh install script (clone, decrypt, setup)
+├── .gitignore                # Excludes .DS_Store, opencode.json
 ├── .gitattributes            # git-agecrypt filter for git-agecrypt.nix files
 ├── .sops.yaml                # sops-nix age key configuration
 ├── git-agecrypt.toml         # git-agecrypt recipient configuration
@@ -1091,4 +1073,4 @@ nix flake check
 
 ---
 
-*Last updated: 2025-11-28*
+*Last updated: 2025-11-29*

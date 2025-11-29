@@ -112,6 +112,11 @@ if [[ "$SECRETS_OK" != true ]]; then
 fi
 echo -e "${GREEN}>> Secrets verified encrypted.${NC}"
 
+# Validate flake before committing
+echo -e "${YELLOW}>> Validating flake...${NC}"
+nix flake check
+echo -e "${GREEN}>> Flake validation passed.${NC}"
+
 # Auto-commit if there are staged changes
 if ! run_git diff --cached --quiet; then
     echo -e "${YELLOW}>> Committing staged changes...${NC}"
