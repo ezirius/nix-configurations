@@ -217,7 +217,7 @@ nixos-rebuild build --flake .#nithra         # Test build without switching
 
 SSH login keys are stored in git-agecrypt.nix (not sops) because they're needed at Nix evaluation time.
 
-1. Edit `secrets/nithra/git-agecrypt.nix`
+1. Edit `Secrets/Nithra/git-agecrypt.nix`
 
 2. Add to `sshPubKeys`:
    ```nix
@@ -227,7 +227,7 @@ SSH login keys are stored in git-agecrypt.nix (not sops) because they're needed 
    };
    ```
 
-3. Add to `hosts/nithra/default.nix` in the `authorizedKeys.keys` list:
+3. Add to `Hosts/Nithra/default.nix` in the `authorizedKeys.keys` list:
    ```nix
    users.users.<user>.openssh.authorizedKeys.keys = [
      # ... existing keys ...
@@ -239,7 +239,7 @@ SSH login keys are stored in git-agecrypt.nix (not sops) because they're needed 
 
 ### Add SSH Key for Boot Unlock
 
-1. Edit `secrets/nithra/git-agecrypt.nix`
+1. Edit `Secrets/Nithra/git-agecrypt.nix`
 
 2. Add to `dropbear.authorizedKeys`:
    ```nix
@@ -254,7 +254,7 @@ SSH login keys are stored in git-agecrypt.nix (not sops) because they're needed 
 
 1. Create directory structure:
    ```
-   users/<name>/
+   Users/<name>/
    ├── default.nix    # System user config
    └── home.nix       # Home-manager config
    ```
@@ -264,36 +264,36 @@ SSH login keys are stored in git-agecrypt.nix (not sops) because they're needed 
    nix-shell -p mkpasswd --run "mkpasswd -m sha-512"
    ```
 
-3. Add password to `secrets/nithra/sops-nix.yaml`:
+3. Add password to `Secrets/Nithra/sops-nix.yaml`:
    ```bash
    cd <repo>
-   sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run "sops secrets/nithra/sops-nix.yaml"
+   sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run "sops Secrets/Nithra/sops-nix.yaml"
    ```
    Add: `<name>-password: "<hash from step 2>"`
 
-4. Add sops reference in `hosts/nithra/default.nix`:
+4. Add sops reference in `Hosts/Nithra/default.nix`:
    ```nix
    sops.secrets.<name>-password.neededForUsers = true;
    ```
 
-5. Import user in `hosts/nithra/default.nix`:
+5. Import user in `Hosts/Nithra/default.nix`:
    ```nix
    imports = [
      ...
-     ../../users/<name>
+     ../../Users/<name>
    ];
    ```
 
 6. Add home-manager in `flake.nix`:
    ```nix
-   home-manager.users.<name> = import ./users/<name>/home.nix;
+   home-manager.users.<name> = import ./Users/<name>/home.nix;
    ```
 
 7. `./install.sh`
 
 ### Add System Package
 
-Edit `modules/core/default.nix`:
+Edit `Modules/Core/default.nix`:
 ```nix
 environment.systemPackages = builtins.attrValues {
   inherit (pkgs)
@@ -305,7 +305,7 @@ environment.systemPackages = builtins.attrValues {
 
 ### Add User Package (via home-manager)
 
-Edit `users/<user>/home.nix`. First ensure `pkgs` is in the function arguments:
+Edit `Users/<user>/home.nix`. First ensure `pkgs` is in the function arguments:
 ```nix
 { pkgs, ... }:
 {
@@ -327,9 +327,9 @@ programs.newprogram = {
 
 ### Add New Host
 
-1. Create `hosts/<hostname>/default.nix` and `disko-config.nix`
-2. Create `secrets/<hostname>/git-agecrypt.nix` (copy and modify from nithra)
-3. Create `secrets/<hostname>/sops-nix.yaml` for runtime secrets
+1. Create `Hosts/<hostname>/default.nix` and `disko-config.nix`
+2. Create `Secrets/<hostname>/git-agecrypt.nix` (copy and modify from Nithra)
+3. Create `Secrets/<hostname>/sops-nix.yaml` for runtime secrets
 4. Add to `flake.nix`:
    ```nix
    nixosConfigurations.<hostname> = nixpkgs.lib.nixosSystem {
@@ -349,10 +349,10 @@ Two-layer system due to NixOS evaluation constraints:
 
 | Layer | Tool | File | When Decrypted | Use Case |
 |-------|------|------|----------------|----------|
-| 1 | git-agecrypt | `secrets/<host>/git-agecrypt.nix` | Git checkout (eval time) | Network config, host keys, Dropbear keys, SSH login pubkeys |
-| 2 | sops-nix | `secrets/<host>/sops-nix.yaml` | System activation | User passwords, GitHub SSH private key |
+| 1 | git-agecrypt | `Secrets/<host>/git-agecrypt.nix` | Git checkout (eval time) | Network config, host keys, Dropbear keys, SSH login pubkeys |
+| 2 | sops-nix | `Secrets/<host>/sops-nix.yaml` | System activation | User passwords, GitHub SSH private key |
 
-**Why two layers?** Layer 1 secrets are needed during Nix evaluation (e.g., boot kernel params) or in initrd (before sops-nix runs). Layer 2 secrets are decrypted at runtime by sops-nix. See the comments in `secrets/nithra/git-agecrypt.nix` for detailed explanation.
+**Why two layers?** Layer 1 secrets are needed during Nix evaluation (e.g., boot kernel params) or in initrd (before sops-nix runs). Layer 2 secrets are decrypted at runtime by sops-nix. See the comments in `Secrets/Nithra/git-agecrypt.nix` for detailed explanation.
 
 ### git-agecrypt.nix Encryption Behavior
 
@@ -366,10 +366,10 @@ Two-layer system due to NixOS evaluation constraints:
 To verify encryption is working:
 ```bash
 # Local file (should be readable plaintext)
-head secrets/nithra/git-agecrypt.nix
+head Secrets/Nithra/git-agecrypt.nix
 
 # In git (should be binary/gibberish)
-git show HEAD:secrets/nithra/git-agecrypt.nix | head -5
+git show HEAD:Secrets/Nithra/git-agecrypt.nix | head -5
 ```
 
 If you can read the local file but `git show` displays binary, git-agecrypt is working correctly.
@@ -397,11 +397,12 @@ AGE-SECRET-KEY-1...
 ```bash
 cd <repo>
 
-# First time setup (if not configured)
+# First time setup in a fresh clone
+nix-shell -p git-agecrypt --run "git-agecrypt init"
 nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"
 
 # Edit (auto-decrypts on read, auto-encrypts on commit)
-vim secrets/nithra/git-agecrypt.nix
+vim Secrets/Nithra/git-agecrypt.nix
 ```
 
 File auto-decrypts on checkout, auto-encrypts on commit via `.gitattributes` filter.
@@ -410,7 +411,7 @@ File auto-decrypts on checkout, auto-encrypts on commit via `.gitattributes` fil
 
 ```bash
 cd <repo>
-sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run "sops secrets/nithra/sops-nix.yaml"
+sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run "sops Secrets/Nithra/sops-nix.yaml"
 ```
 
 Opens in `$EDITOR`. File auto-encrypts on save.
@@ -461,7 +462,7 @@ github-ssh-key-nithra: |       # Private key for GitHub push/pull
 keys:
   - &nithra age15z...         # Anchor for nithra's public key
 creation_rules:
-  - path_regex: secrets/.*/sops-nix\.yaml$
+  - path_regex: Secrets/.*/sops-nix\.yaml$
     key_groups:
       - age:
           - *nithra           # Reference to anchor
@@ -494,7 +495,7 @@ Have these ready before starting:
 | Age key | Password manager | Full contents of age-key.txt |
 | LUKS passphrase | Password manager / create new | Disk encryption password |
 | VPS credentials | Provider account | Control panel login for VNC |
-| This repo | GitHub | git@github.com:ezirius/nix-configurations.git |
+| This repo | GitHub | git@github.com:Ezirius/Nix-Configurations.git |
 
 ### Step 1: Boot NixOS ISO
 
@@ -519,8 +520,8 @@ ping -c 3 1.1.1.1
 nix-shell -p git
 
 # Inside nix-shell: clone repository
-git clone https://github.com/ezirius/nix-configurations /tmp/nixos
-# Or via SSH: git clone git@github.com:ezirius/nix-configurations.git /tmp/nixos
+git clone https://github.com/Ezirius/Nix-Configurations /tmp/nixos
+# Or via SSH: git clone git@github.com:Ezirius/Nix-Configurations.git /tmp/nixos
 
 cd /tmp/nixos
 # Stay in nix-shell for remaining steps that need git
@@ -549,13 +550,14 @@ sudo chmod 600 /tmp/nixos-secrets/age-key.txt
 mkdir -p ~/.config/git-agecrypt
 cp /tmp/nixos-secrets/age-key.txt ~/.config/git-agecrypt/keys.txt
 chmod 600 ~/.config/git-agecrypt/keys.txt
+nix-shell -p git-agecrypt --run "git-agecrypt init"
 nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"
 
 # Force re-checkout to decrypt
-git checkout -- secrets/nithra/git-agecrypt.nix
+git checkout -- Secrets/Nithra/git-agecrypt.nix
 
 # Verify decryption succeeded (should see Nix attribute set, not binary)
-head secrets/nithra/git-agecrypt.nix
+head Secrets/Nithra/git-agecrypt.nix
 ```
 
 If still encrypted (binary/gibberish), check:
@@ -570,7 +572,7 @@ sudo wipefs -a /dev/sda
 
 # Run disko (will prompt for LUKS passphrase)
 sudo nix --experimental-features "nix-command flakes" run github:nix-community/disko -- \
-  --mode disko /tmp/nixos/hosts/nithra/disko-config.nix
+  --mode disko /tmp/nixos/Hosts/Nithra/disko-config.nix
 ```
 
 **Important:** Remember the LUKS passphrase you enter - it's **unrecoverable** if forgotten. You'll need it for every boot.
@@ -623,7 +625,7 @@ After reboot:
 
 ```bash
 # Clone repo to permanent location (git is now installed)
-git clone git@github.com:ezirius/nix-configurations.git <repo>
+git clone git@github.com:Ezirius/Nix-Configurations.git <repo>
 cd <repo>
 
 # Configure git-agecrypt for future edits
@@ -631,10 +633,11 @@ mkdir -p ~/.config/git-agecrypt
 sudo cp /var/lib/sops-nix/key.txt ~/.config/git-agecrypt/keys.txt
 sudo chown ezirius:users ~/.config/git-agecrypt/keys.txt
 chmod 600 ~/.config/git-agecrypt/keys.txt
+nix-shell -p git-agecrypt --run "git-agecrypt init"
 nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"
 
 # Force decrypt git-agecrypt.nix
-git checkout -- secrets/nithra/git-agecrypt.nix
+git checkout -- Secrets/Nithra/git-agecrypt.nix
 
 # Verify config works
 ./install.sh    # Should complete without errors
@@ -746,7 +749,7 @@ vim .sops.yaml  # Replace the age1... public key
 # 4. Re-encrypt sops secrets
 # (Must have OLD key to decrypt, will encrypt with NEW key from .sops.yaml)
 sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run \
-  "sops updatekeys secrets/nithra/sops-nix.yaml"
+  "sops updatekeys Secrets/Nithra/sops-nix.yaml"
 
 # 5. Update git-agecrypt configuration
 # Replace key and reconfigure
@@ -754,10 +757,11 @@ cp /tmp/new-age-key.txt ~/.config/git-agecrypt/keys.txt
 chmod 600 ~/.config/git-agecrypt/keys.txt
 git config --unset-all filter.git-agecrypt.smudge
 git config --unset-all filter.git-agecrypt.clean
+nix-shell -p git-agecrypt --run "git-agecrypt init"
 nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"
 
 # 6. Re-encrypt git-agecrypt secrets (touch to trigger re-encryption on commit)
-git checkout -- secrets/nithra/git-agecrypt.nix
+git checkout -- Secrets/Nithra/git-agecrypt.nix
 # Make a trivial edit (add/remove whitespace) and commit
 
 # 7. Deploy new key to server
@@ -841,7 +845,7 @@ nixos-rebuild boot --flake <repo>#nithra
 - Generate new hash: `nix-shell -p mkpasswd --run "mkpasswd -m sha-512"`
 
 **Shell not working (falls back to sh):**
-- Check `programs.zsh.enable = true` in `users/ezirius/default.nix`
+- Check `programs.zsh.enable = true` in `Users/Ezirius/default.nix`
 
 **Host key verification failed:**
 - Dropbear and OpenSSH have different host keys (by design)
@@ -851,8 +855,12 @@ nixos-rebuild boot --flake <repo>#nithra
 **git-agecrypt not decrypting:**
 - Check key configured: `git config --get-regexp agecrypt`
 - Check key exists: `ls -la ~/.config/git-agecrypt/keys.txt`
-- Re-add: `nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"`
-- Force re-checkout: `git checkout -- secrets/nithra/git-agecrypt.nix`
+- Reinstall filters, then re-add identity:
+  ```bash
+  nix-shell -p git-agecrypt --run "git-agecrypt init"
+  nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"
+  ```
+- Force re-checkout: `git checkout -- Secrets/Nithra/git-agecrypt.nix`
 
 **Build fails with "git-agecrypt.nix: No such file":**
 - File exists but is encrypted/binary
@@ -951,15 +959,15 @@ nixos-rebuild boot --flake <repo>#nithra
 ├── git-agecrypt.toml         # git-agecrypt recipient configuration
 ├── AGENTS.md                 # AI agent instructions
 ├── README.md                 # This file
-├── hosts/nithra/
+├── Hosts/Nithra/
 │   ├── default.nix           # Host config (network, boot, sops refs)
 │   └── disko-config.nix      # Disk layout (GPT, LUKS, LVM, Btrfs)
-├── modules/core/
+├── Modules/Core/
 │   └── default.nix           # Shared config (SSH, firewall, packages, hardening)
-├── secrets/nithra/
+├── Secrets/Nithra/
 │   ├── git-agecrypt.nix      # Encrypted: network, dropbear keys, SSH login pubkeys, host keys
 │   └── sops-nix.yaml         # Encrypted: passwords, GitHub SSH private key
-└── users/{root,ezirius}/
+└── Users/{root,Ezirius}/
     ├── default.nix           # System user (groups, shell, auth)
     └── home.nix              # Home-manager (programs, dotfiles)
 ```
@@ -993,7 +1001,7 @@ LUKS: allowDiscards=true (SSD TRIM passthrough)
 
 ### Packages
 
-**System** (`modules/core/default.nix`):
+**System** (`Modules/Core/default.nix`):
 curl, git, htop, jujutsu (for other repositories - not this one, see Daily Operations note), mosh, opencode, vim
 
 **User** (ezirius via home-manager programs):
@@ -1063,7 +1071,7 @@ All inputs follow nixpkgs (`inputs.nixpkgs.follows = "nixpkgs"`) to avoid versio
 nix flake update && ./install.sh
 
 # Edit sops secrets
-sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run "sops secrets/nithra/sops-nix.yaml"
+sudo SOPS_AGE_KEY_FILE=/var/lib/sops-nix/key.txt nix-shell -p sops --run "sops Secrets/Nithra/sops-nix.yaml"
 
 # Check current generation
 sudo nix-env --list-generations --profile /nix/var/nix/profiles/system

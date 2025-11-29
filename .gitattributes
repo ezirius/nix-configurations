@@ -1,1 +1,1 @@
-secrets/*/git-agecrypt.nix filter=git-agecrypt diff=git-agecrypt
+Secrets/*/git-agecrypt.nix filter=git-agecrypt diff=git-agecrypt

@@ -1,15 +1,20 @@
-{ config, pkgs, modulesPath, ... }:
+{
+  config,
+  pkgs,
+  modulesPath,
+  ...
+}:
 let
-  secrets = import ../../secrets/nithra/git-agecrypt.nix;
+  secrets = import ../../Secrets/Nithra/git-agecrypt.nix;
   # Initrd host key must be in Nix store (available at build time, not activation time)
   initrdHostKey = pkgs.writeText "initrd_ssh_host_ed25519_key" secrets.hostKeys.boot;
 in
 {
   imports = [
     ./disko-config.nix
-    ../../modules/core
-    ../../users/root
-    ../../users/ezirius
+    ../../Modules/Core
+    ../../Users/root
+    ../../Users/Ezirius
     (modulesPath + "/profiles/qemu-guest.nix")
   ];
 
@@ -17,7 +22,7 @@ in
   system.stateVersion = "24.11";
 
   # --- SOPS ---
-  sops.defaultSopsFile = ../../secrets/nithra/sops-nix.yaml;
+  sops.defaultSopsFile = ../../Secrets/Nithra/sops-nix.yaml;
   sops.age.keyFile = "/var/lib/sops-nix/key.txt";
   sops.secrets.root-password.neededForUsers = true;
   sops.secrets.ezirius-password.neededForUsers = true;

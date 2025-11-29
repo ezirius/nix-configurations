@@ -33,12 +33,35 @@
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
     in
     {
-      # Formatter for `nix fmt`
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
+      formatter = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        pkgs.writeShellApplication {
+          name = "nix-fmt-wrapper";
+          runtimeInputs = [
+            pkgs.nixfmt-rfc-style
+            pkgs.git
+            pkgs.findutils
+          ];
+          text = ''
+                        set -euo pipefail
+                        files=$(find . -type f -name '*.nix' ! -ipath './Secrets/*')
+                        if [ -z "$files" ]; then
+                          exit 0
+                        fi
+                        printf '%s
+            ' "$files" | xargs nixfmt --
+          '';
+        }
+      );
 
       nixosConfigurations.nithra = nixpkgs.lib.nixosSystem {
         modules = [
@@ -52,7 +75,7 @@
           sops-nix.nixosModules.sops
 
           # 3. Host Config
-          ./hosts/nithra
+          ./Hosts/Nithra
 
           # 4. Home Manager Module
           home-manager.nixosModules.home-manager
@@ -62,8 +85,8 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "hm-backup";
-            home-manager.users.root = import ./users/root/home.nix;
-            home-manager.users.ezirius = import ./users/ezirius/home.nix;
+            home-manager.users.root = import ./Users/root/home.nix;
+            home-manager.users.ezirius = import ./Users/Ezirius/home.nix;
           }
         ];
       };

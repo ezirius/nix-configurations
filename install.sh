@@ -34,16 +34,89 @@ run_git() {
     fi
 }
 
+# Unstage changes on error to prevent accidental commits
+cleanup_on_error() {
+    echo -e "${RED}>> Error encountered; unstaging changes...${NC}"
+    run_git reset --quiet || true
+}
+trap cleanup_on_error ERR
+
+ensure_git_agecrypt_filters() {
+    if run_git config --get filter.git-agecrypt.smudge > /dev/null 2>&1; then
+        return
+    fi
+
+    KEY_PATH="$HOME/.config/git-agecrypt/keys.txt"
+    if [ ! -f "$KEY_PATH" ]; then
+        echo -e "${RED}>> git-agecrypt filters missing and ${KEY_PATH} not found.${NC}"
+        echo "   Configure git-agecrypt manually, then rerun install.sh"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}>> Configuring git-agecrypt filters...${NC}"
+    nix-shell -p git-agecrypt --run "cd \"$SCRIPT_DIR\" && git-agecrypt init"
+    nix-shell -p git-agecrypt --run "cd \"$SCRIPT_DIR\" && git-agecrypt config add -i \"$KEY_PATH\""
+
+    if ! run_git config --get filter.git-agecrypt.smudge > /dev/null 2>&1; then
+        echo -e "${RED}>> git-agecrypt configuration failed; please configure manually.${NC}"
+        exit 1
+    fi
+}
+
+ensure_sops_key() {
+    SOPS_KEY="/var/lib/sops-nix/key.txt"
+    if [ ! -f "$SOPS_KEY" ]; then
+        echo -e "${RED}>> sops-nix key missing at ${SOPS_KEY}${NC}"
+        echo "   Copy your age key there (sudo required), then rerun install.sh"
+        exit 1
+    fi
+}
+
 # Initialize repo if missing
 if [ ! -d ".git" ]; then
     echo "Initializing Git repository..."
     run_git init
 fi
 
+ensure_git_agecrypt_filters
+ensure_sops_key
+
+# Format Nix files before staging
+echo -e "${YELLOW}>> Formatting Nix files...${NC}"
+nix fmt 2>/dev/null || true
+
 # Stage files (Critical for Flakes)
 echo "Staging files..."
 run_git add .
 
+# Verify secrets are encrypted in staging area
+echo -e "${YELLOW}>> Verifying secrets are encrypted...${NC}"
+SECRETS_FILE="Secrets/Nithra/git-agecrypt.nix"
+FIRST_LINE=$(run_git show ":${SECRETS_FILE}" 2>/dev/null | head -n1 || true)
+if [[ "$FIRST_LINE" != "age-encryption.org/v1" ]]; then
+    echo -e "${RED}>> ERROR: ${SECRETS_FILE} is not encrypted in staging area!${NC}"
+    echo "   Expected 'age-encryption.org/v1' header, got: ${FIRST_LINE:0:30}"
+    echo "   Secrets would be exposed if pushed. Aborting."
+    exit 1
+fi
+echo -e "${GREEN}>> Secrets verified encrypted.${NC}"
+
+# Auto-commit if there are staged changes
+if ! run_git diff --cached --quiet; then
+    echo -e "${YELLOW}>> Committing staged changes...${NC}"
+    run_git commit -m "Automatic commit before deploy"
+fi
+
+# Auto-push if there are unpushed commits
+if run_git rev-parse --abbrev-ref --symbolic-full-name '@{u}' > /dev/null 2>&1; then
+    UNPUSHED=$(run_git rev-list '@{u}..HEAD' --count 2>/dev/null || echo "0")
+    if [[ "$UNPUSHED" -gt 0 ]]; then
+        echo -e "${YELLOW}>> Pushing ${UNPUSHED} commit(s) to remote...${NC}"
+        run_git push
+    fi
+else
+    echo -e "${YELLOW}>> No upstream branch set; skipping push.${NC}"
+fi
 
 # --- 2. DETERMINE TARGET ---
 if [[ -n "$1" ]]; then

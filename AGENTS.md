@@ -6,42 +6,48 @@
 - Use British English spelling (e.g. colour, organisation, licence)
 - Use metric units
 - Never make changes without explicit user approval
-- Never write new files without explicit user permission
-- Ask before modifying: sops-nix.yaml (user must edit), SSH config, firewall rules, user auth
-- Can edit git-agecrypt.nix directly (it's plaintext locally)
-- Proceed without asking: formatting, comments, package additions, documentation
-- Cannot edit encrypted files - if `sops-nix.yaml` needs changes, user must edit it manually
-- Cannot run commands on remote server - only edit local config files
-- After editing `.nix` files, remind user to run `nix fmt`
-- Before user deploys, suggest running `nix flake check` to validate
+- Never read files or directories containing "secret" or "secrets" in the path (case-insensitive rule)
+- Never read files known to contain sensitive information, including:
+  - Private keys (SSH, GPG, age, etc.)
+  - Passwords or password hashes
+  - API keys or tokens
+  - Certificates
+  - Environment files with credentials (.env)
+  - Encryption keys
+  - Authentication credentials
+  - Personal identification information
+- Before pushing to GitHub, check for exposed sensitive information in all modified files (while still following the rules above)
+- Run `git-agecrypt init` followed by `git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt` after cloning to ensure secrets decrypt
+- Before deploying, always push to GitHub first
+- Before deploying, suggest running `nix flake check` to validate
+- Note: `./install.sh` automatically runs `nix fmt` before staging
 
 ## Critical Facts
 
 1. **Git staging required** - Flakes only see staged files. `./install.sh` auto-stages, but `nix flake check` does not.
 
 2. **Two secrets layers:**
-   - `secrets/nithra/git-agecrypt.nix` → git-agecrypt → needed at eval/boot time (network, host keys, SSH login pubkeys)
-   - `secrets/nithra/sops-nix.yaml` → sops-nix → decrypted at runtime (passwords, GitHub SSH private key)
+   - `Secrets/Nithra/git-agecrypt.nix` → git-agecrypt → needed at eval/boot time (network, host keys, SSH login pubkeys)
+   - `Secrets/Nithra/sops-nix.yaml` → sops-nix → decrypted at runtime (passwords, GitHub SSH private key)
 
 3. **git-agecrypt.nix is DECRYPTED LOCALLY - this is correct!**
    - Locally (working directory): **Always plaintext** - this is expected and required for Nix to import it
    - In git commits/remote: **Encrypted** - git-agecrypt encrypts on commit via clean filter
-   - If agent can read the file contents, it means git-agecrypt is working correctly
-   - To verify encryption in git: `git show HEAD:secrets/nithra/git-agecrypt.nix | head -5` (should show binary)
+   - To verify encryption in git: `git show HEAD:Secrets/Nithra/git-agecrypt.nix | head -5` (should show binary)
 
-4. **sops-nix.yaml** - Agent cannot edit this file (encrypted with sops, not git-agecrypt).
+4. **sops-nix.yaml** - User must edit this file manually (encrypted with sops).
 
 5. **Remote LUKS server** - Breaking SSH/network config locks out the user. Always warn before such changes.
 
-6. **git-agecrypt.nix is a Nix file** - Imported directly with `import ../../secrets/nithra/git-agecrypt.nix`, not via sops. Values accessed as `secrets.network.ip`, etc.
+6. **git-agecrypt.nix is a Nix file** - Imported directly with `import ../../Secrets/Nithra/git-agecrypt.nix`, not via sops. Values accessed as `secrets.network.ip`, etc.
 
 7. **Use git, not jj** - jj doesn't support .gitattributes filters, so git-agecrypt won't encrypt.
 
 8. **git-agecrypt needs existing commit** - When initialising a fresh repo, add files except secrets first, commit, then add secrets:
    ```bash
-   git add . ':!secrets'
+   git add . ':!Secrets'
    git commit -m "Initial commit"
-   git add secrets/
+   git add Secrets/
    git commit --amend -m "Initial commit"
    ```
 
@@ -49,17 +55,17 @@
 
 | To change... | Edit file |
 |--------------|-----------|
-| System packages | `modules/core/default.nix` → `environment.systemPackages` |
-| User packages | `users/<user>/home.nix` → `home.packages` or `programs.*` |
-| SSH keys (login) | `secrets/nithra/git-agecrypt.nix` → `sshPubKeys.*` + `hosts/nithra/default.nix` |
-| GitHub SSH key | `secrets/nithra/sops-nix.yaml` + `hosts/nithra/default.nix` (deployed to `~/.ssh/id_ed25519`) |
-| SSH keys (boot unlock) | `secrets/nithra/git-agecrypt.nix` → `dropbear.authorizedKeys` |
-| Network/IP | `secrets/nithra/git-agecrypt.nix` → `network.*` |
-| Firewall ports | `modules/core/default.nix` → `networking.firewall` |
-| SSH hardening | `modules/core/default.nix` → `services.openssh.settings` |
-| Timezone/locale | `modules/core/default.nix` |
-| New user | `users/<name>/` + `hosts/nithra/default.nix` + `flake.nix` |
-| New host | `hosts/<name>/` + `flake.nix` + `install.sh` + `.gitattributes` |
+| System packages | `Modules/Core/default.nix` → `environment.systemPackages` |
+| User packages | `Users/<user>/home.nix` → `home.packages` or `programs.*` |
+| SSH keys (login) | `Secrets/Nithra/git-agecrypt.nix` → `sshPubKeys.*` + `Hosts/Nithra/default.nix` |
+| GitHub SSH key | `Secrets/Nithra/sops-nix.yaml` + `Hosts/Nithra/default.nix` (deployed to `~/.ssh/id_ed25519`) |
+| SSH keys (boot unlock) | `Secrets/Nithra/git-agecrypt.nix` → `dropbear.authorizedKeys` |
+| Network/IP | `Secrets/Nithra/git-agecrypt.nix` → `network.*` |
+| Firewall ports | `Modules/Core/default.nix` → `networking.firewall` |
+| SSH hardening | `Modules/Core/default.nix` → `services.openssh.settings` |
+| Timezone/locale | `Modules/Core/default.nix` |
+| New user | `Users/<name>/` + `Hosts/Nithra/default.nix` + `flake.nix` |
+| New host | `Hosts/<name>/` + `flake.nix` + `install.sh` + `.gitattributes` |
 
 ## Commands
 
@@ -101,11 +107,11 @@ environment.systemPackages = with pkgs; [ curl git vim ];
 
 ### Sops secret reference
 ```nix
-# In hosts/nithra/default.nix:
+# In Hosts/Nithra/default.nix:
 sops.secrets.my-secret = { };
 sops.secrets.my-password.neededForUsers = true;  # For user passwords
 
-# In users/<user>/default.nix (note: needs config in function args):
+# In Users/<user>/default.nix (note: needs config in function args):
 { config, ... }:
 {
   users.users.<user>.hashedPasswordFile = config.sops.secrets.<user>-password.path;
@@ -114,7 +120,7 @@ sops.secrets.my-password.neededForUsers = true;  # For user passwords
 
 ### SSH login key from git-agecrypt
 ```nix
-# In secrets/nithra/git-agecrypt.nix:
+# In Secrets/Nithra/git-agecrypt.nix:
 {
   sshPubKeys = {
     machine1 = "ssh-ed25519 AAAA...";
@@ -122,7 +128,7 @@ sops.secrets.my-password.neededForUsers = true;  # For user passwords
   };
 }
 
-# In hosts/nithra/default.nix:
+# In Hosts/Nithra/default.nix:
 users.users.<user>.openssh.authorizedKeys.keys = [
   secrets.sshPubKeys.machine1
   secrets.sshPubKeys.machine2
@@ -133,7 +139,7 @@ users.users.<user>.openssh.authorizedKeys.keys = [
 
 ### GitHub SSH private key from sops
 ```nix
-# In hosts/nithra/default.nix:
+# In Hosts/Nithra/default.nix:
 sops.secrets.github-ssh-key-nithra = {
   owner = "ezirius";
   path = "/home/ezirius/.ssh/id_ed25519";

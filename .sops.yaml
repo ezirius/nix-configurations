@@ -1,7 +1,7 @@
 keys:
   - &nithra age15z5n8u56j590fflgfs2ne70zrere54gjfsluft4n5fkxl3xw6cxs9fnzgg
 creation_rules:
-  - path_regex: secrets/.*/sops-nix\.yaml$
+  - path_regex: Secrets/.*/sops-nix\.yaml$
     key_groups:
       - age:
           - *nithra
