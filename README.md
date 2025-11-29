@@ -340,7 +340,7 @@ programs.newprogram = {
      modules = [ ... ];
    };
    ```
-5. Add to `install.sh` `KNOWN_HOSTS` array
+5. Add to `install.sh` and `clone.sh` `KNOWN_HOSTS` arrays
 6. Update `.sops.yaml` with host's age public key
 
 ---
@@ -496,7 +496,8 @@ Have these ready before starting:
 
 | Secret | Source | Description |
 |--------|--------|-------------|
-| Age key | Password manager | Full contents of age-key.txt |
+| Age key (git-agecrypt) | Password manager | Decrypts git-agecrypt.nix on checkout |
+| Age key (sops-nix) | Password manager | Decrypts sops-nix.yaml at runtime (different key!) |
 | LUKS passphrase | Password manager / create new | Disk encryption password |
 | VPS credentials | Provider account | Control panel login for VNC |
 | This repo | GitHub | git@github.com:Ezirius/Nix-Configurations.git |
@@ -532,10 +533,11 @@ curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone
 The script will:
 1. Check network connectivity
 2. Clone the repository to `/tmp/Nix-Configurations`
-3. Prompt you to paste your age private key
-4. Configure git-agecrypt filters
-5. Verify secrets are encrypted, then decrypt them
-6. Print next steps
+3. Prompt you to paste your **git-agecrypt** age private key
+4. Prompt you to paste your **sops-nix** age private key (different key!)
+5. Configure git-agecrypt filters
+6. Verify secrets are encrypted, then decrypt them
+7. Print next steps
 
 **Manual alternative:** If the curl command fails, see the manual steps in the script comments or clone manually:
 ```bash
@@ -557,12 +559,13 @@ sudo nix --experimental-features "nix-command flakes" run github:nix-community/d
 
 **Important:** Remember the LUKS passphrase you enter - it's **unrecoverable** if forgotten. You'll need it for every boot.
 
-### Step 4: Copy Age Key to Target
+### Step 4: Copy sops-nix Key to Target
 
 ```bash
 # Disko mounts filesystems at /mnt
+# Copy the sops-nix key (saved by clone.sh to /tmp/sops-nix-key.txt)
 sudo mkdir -p /mnt/var/lib/sops-nix
-sudo cp ~/.config/git-agecrypt/keys.txt /mnt/var/lib/sops-nix/key.txt
+sudo cp /tmp/sops-nix-key.txt /mnt/var/lib/sops-nix/key.txt
 sudo chmod 600 /mnt/var/lib/sops-nix/key.txt
 ```
 
@@ -609,9 +612,10 @@ git clone git@github.com:Ezirius/Nix-Configurations.git ~/Nix-Configurations
 cd ~/Nix-Configurations
 
 # Configure git-agecrypt for future edits
+# Note: git-agecrypt key is DIFFERENT from sops-nix key
+# Copy your git-agecrypt key from password manager or existing machine
 mkdir -p ~/.config/git-agecrypt
-sudo cp /var/lib/sops-nix/key.txt ~/.config/git-agecrypt/keys.txt
-sudo chown ezirius:users ~/.config/git-agecrypt/keys.txt
+vim ~/.config/git-agecrypt/keys.txt  # Paste git-agecrypt key
 chmod 600 ~/.config/git-agecrypt/keys.txt
 nix-shell -p git-agecrypt --run "git-agecrypt init"
 nix-shell -p git-agecrypt --run "git-agecrypt config add -i ~/.config/git-agecrypt/keys.txt"

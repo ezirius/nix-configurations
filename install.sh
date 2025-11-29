@@ -51,10 +51,24 @@ ensure_git_agecrypt_filters() {
     fi
 
     KEY_PATH="$HOME/.config/git-agecrypt/keys.txt"
-    if [ ! -f "$KEY_PATH" ]; then
-        echo -e "${RED}>> git-agecrypt filters missing and ${KEY_PATH} not found.${NC}"
-        echo "   Configure git-agecrypt manually, then rerun install.sh"
-        exit 1
+    if [ -f "$KEY_PATH" ] && grep -q "AGE-SECRET-KEY-" "$KEY_PATH"; then
+        echo -e "${GREEN}>> git-agecrypt key already exists at ${KEY_PATH}${NC}"
+    else
+        echo -e "${YELLOW}>> git-agecrypt key missing or invalid at ${KEY_PATH}${NC}"
+        echo "   Creating directory and prompting for key..."
+        mkdir -p "$(dirname "$KEY_PATH")"
+        echo ""
+        echo "Paste your git-agecrypt age private key (starts with AGE-SECRET-KEY-)."
+        echo "This key decrypts git-agecrypt.nix files. Press Ctrl+D when done:"
+        echo ""
+        KEY_CONTENT=$(cat)
+        if [[ -z "$KEY_CONTENT" ]]; then
+            echo -e "${RED}>> No key provided. Aborting.${NC}"
+            exit 1
+        fi
+        echo "$KEY_CONTENT" > "$KEY_PATH"
+        chmod 600 "$KEY_PATH"
+        echo -e "${GREEN}>> git-agecrypt key saved to ${KEY_PATH}${NC}"
     fi
 
     echo -e "${YELLOW}>> Configuring git-agecrypt filters...${NC}"
@@ -69,10 +83,24 @@ ensure_git_agecrypt_filters() {
 
 ensure_sops_key() {
     SOPS_KEY="/var/lib/sops-nix/key.txt"
-    if [ ! -f "$SOPS_KEY" ]; then
-        echo -e "${RED}>> sops-nix key missing at ${SOPS_KEY}${NC}"
-        echo "   Copy your age key there (sudo required), then rerun install.sh"
-        exit 1
+    if sudo test -s "$SOPS_KEY" && sudo grep -q "AGE-SECRET-KEY-" "$SOPS_KEY"; then
+        echo -e "${GREEN}>> sops-nix key already exists at ${SOPS_KEY}${NC}"
+    else
+        echo -e "${YELLOW}>> sops-nix key missing or invalid at ${SOPS_KEY}${NC}"
+        echo "   Creating directory and prompting for key..."
+        sudo mkdir -p "$(dirname "$SOPS_KEY")"
+        echo ""
+        echo "Paste your sops-nix age private key (starts with AGE-SECRET-KEY-)."
+        echo "This key decrypts sops-nix.yaml files. Press Ctrl+D when done:"
+        echo ""
+        KEY_CONTENT=$(cat)
+        if [[ -z "$KEY_CONTENT" ]]; then
+            echo -e "${RED}>> No key provided. Aborting.${NC}"
+            exit 1
+        fi
+        echo "$KEY_CONTENT" | sudo tee "$SOPS_KEY" > /dev/null
+        sudo chmod 600 "$SOPS_KEY"
+        echo -e "${GREEN}>> sops-nix key saved to ${SOPS_KEY}${NC}"
     fi
 }
 
@@ -87,7 +115,7 @@ ensure_sops_key
 
 # Format Nix files before staging
 echo -e "${YELLOW}>> Formatting Nix files...${NC}"
-if ! nix fmt 2>&1 | grep -v "^warning: Git tree"; then
+if ! nix --extra-experimental-features "nix-command flakes" fmt 2>&1 | grep -v "^warning: Git tree"; then
     echo -e "${YELLOW}>> Formatter returned non-zero (may be ok if no .nix files changed)${NC}"
 fi
 
@@ -114,7 +142,7 @@ echo -e "${GREEN}>> Secrets verified encrypted.${NC}"
 
 # Validate flake before committing
 echo -e "${YELLOW}>> Validating flake...${NC}"
-nix flake check
+nix --extra-experimental-features "nix-command flakes" flake check
 echo -e "${GREEN}>> Flake validation passed.${NC}"
 
 # Auto-commit if there are staged changes
