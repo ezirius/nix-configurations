@@ -73,7 +73,12 @@ ensure_git_agecrypt_filters() {
 
     echo -e "${YELLOW}>> Configuring git-agecrypt filters...${NC}"
     nix-shell -p git-agecrypt --run "cd \"$SCRIPT_DIR\" && git-agecrypt init"
-    nix-shell -p git-agecrypt --run "cd \"$SCRIPT_DIR\" && git-agecrypt config add -i \"$KEY_PATH\""
+    # Only add identity if not already configured
+    if ! nix-shell -p git-agecrypt --run "cd \"$SCRIPT_DIR\" && git-agecrypt config list" 2>/dev/null | grep -q "$KEY_PATH"; then
+        nix-shell -p git-agecrypt --run "cd \"$SCRIPT_DIR\" && git-agecrypt config add -i \"$KEY_PATH\""
+    else
+        echo -e "${GREEN}>> git-agecrypt identity already configured${NC}"
+    fi
 
     if ! run_git config --get filter.git-agecrypt.smudge > /dev/null 2>&1; then
         echo -e "${RED}>> git-agecrypt configuration failed; please configure manually.${NC}"
