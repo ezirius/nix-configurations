@@ -163,8 +163,9 @@ if [ ! -f "$SECRETS_FILE" ]; then
 fi
 
 # Check if secrets are already decrypted or need decryption
+# Decrypted Nix files start with { or # (comment)
 FIRST_CHAR=$(head -c1 "$SECRETS_FILE")
-if [ "$FIRST_CHAR" = "{" ]; then
+if [ "$FIRST_CHAR" = "{" ] || [ "$FIRST_CHAR" = "#" ]; then
     echo -e "${GREEN}>> Secrets already decrypted${NC}"
 else
     # Verify secrets are encrypted
@@ -172,7 +173,7 @@ else
     FIRST_LINE=$(head -n1 "$SECRETS_FILE")
     if [ "$FIRST_LINE" != "age-encryption.org/v1" ]; then
         echo -e "${RED}>> Error: Secrets file is neither encrypted nor valid Nix!${NC}"
-        echo "   Expected 'age-encryption.org/v1' or '{', got: ${FIRST_LINE:0:30}"
+        echo "   Expected 'age-encryption.org/v1' or '{' or '#', got: ${FIRST_LINE:0:30}"
         exit 1
     fi
     echo -e "${GREEN}>> Secrets are encrypted${NC}"
@@ -181,13 +182,13 @@ else
     echo -e "${YELLOW}>> Decrypting secrets...${NC}"
     nix-shell -p git --run "cd '${CLONE_DIR}' && git checkout -- 'Secrets/${TARGET_HOST}/git-agecrypt.nix'"
 
-    # Verify decryption
+    # Verify decryption (decrypted Nix files start with { or # comment)
     FIRST_CHAR=$(head -c1 "$SECRETS_FILE")
-    if [ "$FIRST_CHAR" = "{" ]; then
+    if [ "$FIRST_CHAR" = "{" ] || [ "$FIRST_CHAR" = "#" ]; then
         echo -e "${GREEN}>> Secrets decrypted successfully${NC}"
     else
         echo -e "${RED}>> Error: Secrets file doesn't appear to be decrypted${NC}"
-        echo "   Expected Nix attribute set, got: $(head -n1 "$SECRETS_FILE" | head -c50)"
+        echo "   Expected Nix attribute set or comment, got: $(head -n1 "$SECRETS_FILE" | head -c50)"
         exit 1
     fi
 fi
