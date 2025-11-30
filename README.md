@@ -523,10 +523,8 @@ curl -sI https://github.com --max-time 5 && echo "Network OK"
 The `clone.sh` script automates repository setup, age key configuration, and secrets decryption:
 
 ```bash
-# Download and run clone script (will prompt for host selection)
-curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash
-
-# Or specify host directly
+# Download and run clone script
+# Note: Host must be specified when piping (interactive selection doesn't work)
 curl -sL https://raw.githubusercontent.com/Ezirius/Nix-Configurations/main/clone.sh | bash -s -- Nithra
 ```
 

@@ -11,6 +11,12 @@ NC='\033[0m'
 
 KNOWN_HOSTS=("Nithra")
 
+# Ensure running interactively (not piped)
+if [[ ! -t 0 ]]; then
+    echo -e "${RED}>> Error: install.sh must be run interactively, not piped${NC}"
+    exit 1
+fi
+
 # --- 0. RESOLVE SCRIPT LOCATION ---
 # Get the directory where this script lives (the repo), regardless of where it's called from
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -25,6 +25,12 @@ if [[ -n "${1:-}" ]]; then
     # Normalise to "Capitalised" format (e.g., "NITHRA" or "nithra" -> "Nithra")
     TARGET_HOST="${1,,}"
     TARGET_HOST="${TARGET_HOST^}"
+elif [[ ! -t 0 ]]; then
+    # Running from pipe (curl | bash) - can't use interactive select
+    echo -e "${RED}>> Error: No host specified and running non-interactively${NC}"
+    echo "   Usage: curl ... | bash -s -- <host>"
+    echo "   Available hosts: ${KNOWN_HOSTS[*]}"
+    exit 1
 else
     echo -e "${YELLOW}>> Select host to install:${NC}"
     select opt in "${KNOWN_HOSTS[@]}"; do
@@ -90,7 +96,7 @@ if [ -f "$KEY_PATH" ] && grep -q "AGE-SECRET-KEY-" "$KEY_PATH"; then
 else
     echo -e "${YELLOW}>> Paste your git-agecrypt age private key below, then press Ctrl+D:${NC}"
     echo "   (This key decrypts git-agecrypt.nix files. Starts with AGE-SECRET-KEY-...)"
-    cat > "$KEY_PATH"
+    cat < /dev/tty > "$KEY_PATH"
     chmod 600 "$KEY_PATH"
     echo ""
 fi
@@ -116,7 +122,7 @@ else
     echo -e "${YELLOW}>> Paste your sops-nix age private key below, then press Ctrl+D:${NC}"
     echo "   (This key decrypts sops-nix.yaml files. Starts with AGE-SECRET-KEY-...)"
     echo "   (This is a DIFFERENT key from git-agecrypt!)"
-    cat > "$SOPS_KEY_PATH"
+    cat < /dev/tty > "$SOPS_KEY_PATH"
     chmod 600 "$SOPS_KEY_PATH"
     echo ""
 fi
