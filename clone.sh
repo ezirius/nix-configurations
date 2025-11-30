@@ -146,9 +146,9 @@ if ! nix-shell -p git --run "cd '${CLONE_DIR}' && git config --get filter.git-ag
 else
     echo -e "${GREEN}>> git-agecrypt filters already configured${NC}"
 fi
-# Only add identity if not already configured
-if ! nix-shell -p git-agecrypt --run "cd '${CLONE_DIR}' && git-agecrypt config list" 2>/dev/null | grep -q "${KEY_PATH}"; then
-    nix-shell -p git-agecrypt --run "cd '${CLONE_DIR}' && git-agecrypt config add -i '${KEY_PATH}'"
+# Add identity (ignore if already exists)
+if ! nix-shell -p git-agecrypt --run "cd '${CLONE_DIR}' && git-agecrypt config add -i '${KEY_PATH}'" 2>&1 | grep -q "already exists"; then
+    echo -e "${GREEN}>> git-agecrypt identity added${NC}"
 else
     echo -e "${GREEN}>> git-agecrypt identity already configured${NC}"
 fi

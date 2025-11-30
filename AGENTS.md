@@ -5,7 +5,7 @@
 - Be concise
 - Use British English spelling (e.g. colour, organisation, licence)
 - Use metric units
-- **MANDATORY: Always ask for explicit approval before making any file changes** - describe proposed changes first, wait for user confirmation, then implement
+- **Always ask for explicit approval before making any file changes** - describe proposed changes first, wait for user confirmation, then implement
 - Never read files or directories containing "secret" or "secrets" in the path (case-insensitive rule)
 - Never read files known to contain sensitive information, including:
   - Private keys (SSH, GPG, age, etc.)
