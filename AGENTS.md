@@ -66,13 +66,14 @@
 | SSH hardening | `Modules/Core/default.nix` → `services.openssh.settings` |
 | Timezone/locale | `Modules/Core/default.nix` |
 | New user | `Users/<name>/` + `Hosts/Nithra/default.nix` + `flake.nix` |
-| New host | `Hosts/<name>/` + `flake.nix` + `install.sh` + `clone.sh` + `.gitattributes` |
+| New host | `Hosts/<name>/` + `flake.nix` + `install.sh` + `clone.sh` + `partition.sh` + `.gitattributes` |
 
 ## Commands
 
 ```bash
-./install.sh                              # Build and switch (auto-stages git)
+./install.sh [host]                       # Build and switch (auto-stages git)
 ./clone.sh [host]                         # Fresh install from NixOS live ISO
+./partition.sh [host]                     # Partition disk using disko
 nix flake check                           # Validate flake (requires git add first)
 nix fmt                                   # Format all .nix files
 nixos-rebuild build --flake .#nithra      # Test build without switching

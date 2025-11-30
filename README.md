@@ -340,7 +340,7 @@ programs.newprogram = {
      modules = [ ... ];
    };
    ```
-5. Add to `install.sh` and `clone.sh` `KNOWN_HOSTS` arrays
+5. Add to `install.sh`, `clone.sh`, and `partition.sh` `KNOWN_HOSTS` arrays
 6. Update `.sops.yaml` with host's age public key
 
 ---
@@ -547,13 +547,15 @@ nix-shell -p git --run "git clone https://github.com/Ezirius/Nix-Configurations.
 ```bash
 cd /tmp/Nix-Configurations
 
-# Wipe existing partitions
-sudo wipefs -a /dev/sda
-
-# Run disko (will prompt for LUKS passphrase)
-sudo nix --experimental-features "nix-command flakes" run github:nix-community/disko -- \
-  --mode disko /tmp/Nix-Configurations/Hosts/Nithra/disko-config.nix
+# Run partition script (will prompt for LUKS passphrase)
+./partition.sh Nithra
 ```
+
+The script will:
+1. Read the disk device from `disko-config.nix`
+2. Verify the disk exists
+3. Show disk details and require "yes" confirmation
+4. Wipe and partition the disk
 
 **Important:** Remember the LUKS passphrase you enter - it's **unrecoverable** if forgotten. You'll need it for every boot.
 
@@ -937,6 +939,7 @@ nixos-rebuild boot --flake <repo>#nithra
 ├── flake.lock                # Pinned input versions
 ├── install.sh                # Deploy script (formats, validates, stages, commits, pushes, builds)
 ├── clone.sh                  # Fresh install script (clone, decrypt, setup)
+├── partition.sh              # Disk partitioning script (wipes disk, runs disko)
 ├── .gitignore                # Excludes .DS_Store, opencode.json
 ├── .gitattributes            # git-agecrypt filter for git-agecrypt.nix files
 ├── .sops.yaml                # sops-nix age key configuration
