@@ -1,0 +1,4 @@
+[config]
+"Private/Common/git-agecrypt.nix" = ["age13g0z6876570jnfmf3qjrcmmgtsg7eyvp48k5aw9g2vlfptaldujs2s3zgg"]
+"Private/Maldoria/git-agecrypt.nix" = ["age13g0z6876570jnfmf3qjrcmmgtsg7eyvp48k5aw9g2vlfptaldujs2s3zgg"]
+"Private/Nithra/git-agecrypt.nix" = ["age13g0z6876570jnfmf3qjrcmmgtsg7eyvp48k5aw9g2vlfptaldujs2s3zgg"]
