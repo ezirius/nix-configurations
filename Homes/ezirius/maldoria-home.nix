@@ -39,12 +39,12 @@ in
           MACs = "hmac-sha2-512-etm@openssh.com";
         };
       };
-      "maldoria-github-ezirius-nix-configurations" = {
+      "github-maldoria-nix-configurations" = {
         hostname = "github.com";
         user = "git";
-        identityFile = "~/.ssh/maldoria_github_ezirius_nix-configurations";
+        identityFile = "~/.ssh/maldoria-github-ezirius-nix-configurations.pub";
         identitiesOnly = true;
-        extraOptions.HostKeyAlias = "maldoria-github-ezirius-nix-configurations";
+        extraOptions.HostKeyAlias = "github-maldoria-nix-configurations";
       };
       "maldoria-nithra-root-boot" = {
         hostname = secrets.network.nithraIp;
@@ -67,9 +67,9 @@ in
   # GitHub keys: from Public/Common/keys.nix
   # Nithra keys: from Public/Maldoria/keys.nix
   home.file.".ssh/known_hosts".text = ''
-    maldoria-github-ezirius-nix-configurations ${common.hostKeysPub.github.ed25519}
-    maldoria-github-ezirius-nix-configurations ${common.hostKeysPub.github.rsa}
-    maldoria-github-ezirius-nix-configurations ${common.hostKeysPub.github.ecdsa}
+    github-maldoria-nix-configurations ${common.hostKeysPub.github.ed25519}
+    github-maldoria-nix-configurations ${common.hostKeysPub.github.rsa}
+    github-maldoria-nix-configurations ${common.hostKeysPub.github.ecdsa}
     maldoria-nithra-root-boot ${pubkeys.hostKeysPub.nithra_all_all_boot}
     maldoria-nithra-ezirius-login ${pubkeys.hostKeysPub.nithra_all_all_login}
   '';
@@ -77,21 +77,27 @@ in
   # --- JUJUTSU (host-specific signing) ---
   programs.jujutsu.settings.signing = {
     backend = "ssh";
-    key = "~/.ssh/maldoria_github_ezirius_sign";
+    key = "~/.ssh/maldoria-github-ezirius-sign.pub";
     sign-all = true;
   };
 
   # --- GIT (host-specific signing, includes, and 1Password SSH program) ---
   programs.git = {
     signing = {
-      key = "~/.ssh/maldoria_github_ezirius_sign";
+      key = "~/.ssh/maldoria-github-ezirius-sign.pub";
       signByDefault = true;
     };
     includes = [
       {
         condition = "gitdir:~/Documents/Ezirius/Development/GitHub/Nix-Configurations/";
         contents = {
-          url."git@maldoria-github-ezirius-nix-configurations:".insteadOf = "git@github.com:";
+          url."git@github-maldoria-nix-configurations:".insteadOf = "git@github.com:";
+        };
+      }
+      {
+        condition = "gitdir:~/Documents/Ezirius/Development/OpenCode/nix-configurations/";
+        contents = {
+          url."git@github-maldoria-nix-configurations:".insteadOf = "git@github.com:";
         };
       }
     ];

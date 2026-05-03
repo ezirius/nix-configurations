@@ -99,13 +99,13 @@ in
 
   sops.secrets.maldoria_github_ezirius_nix-configurations = {
     owner = username;
-    path = "${homeDir}/.ssh/maldoria_github_ezirius_nix-configurations";
+    path = "${homeDir}/.ssh/maldoria-github-ezirius-nix-configurations.pub";
     mode = "0600";
   };
 
   sops.secrets.maldoria_github_ezirius_sign = {
     owner = username;
-    path = "${homeDir}/.ssh/maldoria_github_ezirius_sign";
+    path = "${homeDir}/.ssh/maldoria-github-ezirius-sign.pub";
     mode = "0600";
   };
 
